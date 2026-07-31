@@ -118,7 +118,7 @@ async function connectToWhatsApp() {
         logger: pino.default({ level: 'silent' }) as any
     });
 
-    sock.ev.on('connection.update', (update: any) => {
+    sock.ev.on('connection.update', async (update: any) => {
         const { connection, lastDisconnect, qr } = update;
         
         if (qr) {
