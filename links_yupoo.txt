@@ -1,0 +1,103 @@
+# ==========================================
+# 🛒 FÁBRICA DE ANÚNCIOS - MANTO MANIA 🛒
+# ==========================================
+# Cole os links do Yupoo abaixo da categoria/time correspondente.
+# O robô vai baixar, organizar, nomear e colocar os preços automaticamente!
+
+# ------------------------------------------
+# 🇧🇷 TIMES DO BRASIL
+# ------------------------------------------
+
+[Times do Brasil/C.R Flamengo]
+
+[Times do Brasil/Palmeiras]
+
+[Times do Brasil/Corinthians]
+
+[Times do Brasil/São Paulo]
+
+[Times do Brasil/Santos]
+
+[Times do Brasil/Fluminense F.C]
+
+[Times do Brasil/Botafogo F.R]
+
+[Times do Brasil/Vasco da Gama]
+
+
+[Times do Brasil/Cruzeiro]
+
+[Times do Brasil/Atlético Mineiro]
+
+[Times do Brasil/Grêmio]
+
+[Times do Brasil/Bahia]
+
+
+# ------------------------------------------
+# 🇪🇸 LALIGA (ESPANHA)
+# ------------------------------------------
+
+[Times da Espanha/Real Madrid]
+
+[Times da Espanha/Barcelona]
+
+# ------------------------------------------
+# 🏴󠁧󠁢󠁥󠁮󠁧󠁿 PREMIER LEAGUE (INGLATERRA)
+# ------------------------------------------
+
+[Times da Inglaterra/Manchester City]
+
+[Times da Inglaterra/Manchester United]
+
+[Times da Inglaterra/Arsenal]
+https://8618320710438.x.yupoo.com/albums/127939028?uid=1
+[Times da Inglaterra/Chelsea]
+
+[Times da Inglaterra/Liverpool]
+
+
+# ------------------------------------------
+# 🇮🇹 SERIE A (ITÁLIA)
+# ------------------------------------------
+
+[Times da Itália/Milan]
+
+[Times da Itália/Internazionale de Milão]
+
+[Times da Itália/Juventus]
+
+
+# ------------------------------------------
+# 🇩🇪 BUNDESLIGA (ALEMANHA) E OUTROS
+# ------------------------------------------
+
+[Times da Alemanha/Bayern de Munique]
+
+[Times da Alemanha/Borussia Dortmund]
+
+[Times da França/Paris Saint-Germain]
+# ------------------------------------------
+# 🌎 SELEÇÕES
+# ------------------------------------------
+
+[Seleções/Brasil]
+
+[Seleções/Argentina]
+
+[Seleções/Curação]
+
+# ------------------------------------------
+# 🏀 OUTROS ESPORTES / ITENS ESPECIAIS
+# ------------------------------------------
+
+[NBA/Lakers]
+[NBA/Bulls]
+
+[NBA/Knicks]
+
+[NBA/Denver Nuggets]
+
+[NBA/Philadelphia 76ers]
+
+[NBA/Thunder]

@@ -1,0 +1,19 @@
+{
+  "name": "mantomania",
+  "version": "1.0.0",
+  "description": "",
+  "main": "organizar_loja.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.19.0",
+    "dotenv": "^17.4.2",
+    "form-data": "^4.0.6",
+    "openai": "^7.2.0",
+    "puppeteer": "^25.4.0"
+  }
+}
