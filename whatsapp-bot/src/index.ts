@@ -89,7 +89,7 @@ async function askVendedor(jid: string, userMessage: string): Promise<string> {
 
     try {
         const response = await openai.chat.completions.create({
-            model: "meta-llama/llama-3-70b-instruct",
+            model: "meta-llama/llama-3.1-70b-instruct",
             messages: history as any,
             temperature: 0.7,
         });
