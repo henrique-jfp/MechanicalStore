@@ -177,6 +177,22 @@ async function connectToWhatsApp() {
                 globalBotEnabled = true;
                 await sock.sendMessage(ADMIN_JID, { text: "✅ Sistema de IA LIGADO globalmente." });
                 return;
+            } else if (cmd === '/parar' && m.key.fromMe) {
+                conversationStates.set(jid, 'PAUSED_BY_ADMIN');
+                if (adminTimers.has(jid)) {
+                    clearInterval(adminTimers.get(jid));
+                    adminTimers.delete(jid);
+                }
+                await sock.sendMessage(jid, { text: "🛑 Thiago silenciado neste chat." });
+                return;
+            } else if (cmd === '/atender' && m.key.fromMe) {
+                conversationStates.set(jid, 'SHOPPING');
+                if (adminTimers.has(jid)) {
+                    clearInterval(adminTimers.get(jid));
+                    adminTimers.delete(jid);
+                }
+                await sock.sendMessage(jid, { text: "✅ Thiago reassumiu este chat." });
+                return;
             } else if (cmd.startsWith('atender ')) {
                 const target = cmd.split(' ')[1] + '@s.whatsapp.net';
                 conversationStates.set(target, 'SHOPPING');
