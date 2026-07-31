@@ -92,6 +92,7 @@ async function askVendedor(jid: string, userMessage: string): Promise<string> {
             model: "deepseek/deepseek-v4-flash",
             messages: history as any,
             temperature: 0.7,
+            max_tokens: 800,
         });
 
         let reply = response.choices[0].message.content || '...';
