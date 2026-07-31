@@ -226,16 +226,20 @@ async function connectToWhatsApp() {
             
             // Inicia os alertas para o Admin
             adminAlertCount.set(jid, 0);
-            const timerId = setInterval(async () => {
+            const sendAlert = async () => {
                 let count = adminAlertCount.get(jid) || 0;
                 if (count >= 7) {
-                    clearInterval(timerId);
-                    adminTimers.delete(jid);
+                    if (adminTimers.has(jid)) {
+                        clearInterval(adminTimers.get(jid));
+                        adminTimers.delete(jid);
+                    }
                     return;
                 }
                 await sock.sendMessage(ADMIN_JID, { text: `🚨 *CLIENTE NA FILA* 🚨\nNúmero: ${jid.split('@')[0]}\nMensagem: "${text}"\n\nResponda com "atender ${jid.split('@')[0]}" para a IA assumir, ou "parar ${jid.split('@')[0]}" para você assumir no humano.` });
                 adminAlertCount.set(jid, count + 1);
-            }, 25000);
+            };
+            sendAlert(); // Executa a primeira vez IMEDIATAMENTE
+            const timerId = setInterval(sendAlert, 25000);
             adminTimers.set(jid, timerId);
             
             return; 
