@@ -23,11 +23,16 @@ const openai = new OpenAI({
 
 const ADMIN_JID = (process.env.ADMIN_NUMBER || "5521970734956") + "@s.whatsapp.net";
 let sock: any = null;
+let globalBotEnabled = true;
+let grupoPedidosJid = ADMIN_JID;
 
 // Histórico de conversas (para manter contexto de múltiplos clientes)
 const conversationHistory = new Map<string, Array<{role: 'system' | 'user' | 'assistant', content: string}>>();
 // Estado do cliente
-const conversationStates = new Map<string, 'SHOPPING' | 'WAITING_PAYMENT' | 'PAID'>();
+const conversationStates = new Map<string, 'NEW' | 'GREETED' | 'WAITING_ADMIN_APPROVAL' | 'SHOPPING' | 'PAUSED_BY_ADMIN' | 'WAITING_PAYMENT' | 'PAID'>();
+// Timers de alerta para o Admin
+const adminTimers = new Map<string, NodeJS.Timeout>();
+let adminAlertCount = new Map<string, number>();
 
 // Instancia o Tesoureiro
 const tesoureiro = new Tesoureiro(async (jid: string) => {
@@ -35,7 +40,7 @@ const tesoureiro = new Tesoureiro(async (jid: string) => {
     if (sock) {
         try {
             await sock.sendMessage(jid, { text: "🎉 *Pagamento Aprovado!* 🎉\nSua compra foi concluída com sucesso na Manto Mania!\n\n📦 O seu pedido já foi para a nossa central. Em até 3 dias úteis o seu *Código de Rastreio* estará disponível.\nVocê poderá consultá-lo diretamente aqui no chat, no site dos Correios ou na transportadora.\n\nMuito obrigado pela confiança! ⚽" });
-            await sock.sendMessage(ADMIN_JID, { text: `✅ 💰 *PAGAMENTO CONFIRMADO!* O cliente ${jid.split('@')[0]} acabou de pagar o Mercado Pago! Faça o pedido dele no Fornecedor.` });
+            await sock.sendMessage(grupoPedidosJid, { text: `✅ 💰 *PAGAMENTO CONFIRMADO!* O cliente ${jid.split('@')[0]} acabou de pagar o Mercado Pago! Faça o pedido dele no Fornecedor.` });
         } catch (e) {
             console.error("Erro ao enviar mensagem de pós-venda:", e);
         }
@@ -130,6 +135,20 @@ async function connectToWhatsApp() {
         } else if (connection === 'open') {
             console.log('✅ Vendedor Inteligente Manto Mania ONLINE e aguardando clientes!');
             console.log(`📦 Produtos em estoque carregados na memória da IA: \n${getEstoqueEmTexto().split('\n').length}`);
+            
+            // Busca o grupo "Pedidos Estruturados"
+            try {
+                const groups = await sock.groupFetchAllParticipating();
+                for (const group of Object.values(groups)) {
+                    if ((group as any).subject === 'Pedidos Estruturados') {
+                        grupoPedidosJid = (group as any).id;
+                        console.log(`✅ Grupo "Pedidos Estruturados" encontrado! JID: ${grupoPedidosJid}`);
+                        break;
+                    }
+                }
+            } catch (e) {
+                console.log("⚠️ Não foi possível buscar os grupos no momento.");
+            }
         }
     });
 
@@ -142,16 +161,57 @@ async function connectToWhatsApp() {
         if (!m || !m.message || m.key.fromMe) return;
 
         const jid = m.key.remoteJid;
-        if (!jid || jid.includes('@g.us')) return; 
         
         const text = m.message?.conversation || m.message?.extendedTextMessage?.text || '';
         if (!text) return;
 
+        // Comandos do Admin
+        if (jid === ADMIN_JID || (m.key.fromMe && jid.includes('@s.whatsapp.net'))) {
+            const cmd = text.toLowerCase().trim();
+            if (cmd === '/thiago off') {
+                globalBotEnabled = false;
+                await sock.sendMessage(ADMIN_JID, { text: "🛑 Sistema de IA DESLIGADO globalmente." });
+                return;
+            } else if (cmd === '/thiago on') {
+                globalBotEnabled = true;
+                await sock.sendMessage(ADMIN_JID, { text: "✅ Sistema de IA LIGADO globalmente." });
+                return;
+            } else if (cmd.startsWith('atender ')) {
+                const target = cmd.split(' ')[1] + '@s.whatsapp.net';
+                conversationStates.set(target, 'SHOPPING');
+                if (adminTimers.has(target)) {
+                    clearInterval(adminTimers.get(target));
+                    adminTimers.delete(target);
+                }
+                await sock.sendMessage(ADMIN_JID, { text: `✅ Thiago assumiu o atendimento para ${target.split('@')[0]}.` });
+                return;
+            } else if (cmd.startsWith('parar ')) {
+                const target = cmd.split(' ')[1] + '@s.whatsapp.net';
+                conversationStates.set(target, 'PAUSED_BY_ADMIN');
+                if (adminTimers.has(target)) {
+                    clearInterval(adminTimers.get(target));
+                    adminTimers.delete(target);
+                }
+                await sock.sendMessage(ADMIN_JID, { text: `🛑 Thiago bloqueado para o cliente ${target.split('@')[0]}. Somente você responderá agora.` });
+                return;
+            }
+        }
+
+        if (!globalBotEnabled) return;
+        if (!jid || jid.includes('@g.us')) return; 
+
         console.log(`\n📩 [CLIENTE] ${jid.split('@')[0]}: ${text}`);
 
         // Controle de Estados
-        const estadoAtual = conversationStates.get(jid) || 'SHOPPING';
+        const estadoAtual = conversationStates.get(jid) || 'NEW';
         
+        if (estadoAtual === 'PAUSED_BY_ADMIN') return;
+
+        if (estadoAtual === 'WAITING_ADMIN_APPROVAL') {
+            console.log(`⏳ Ignorando mensagem de ${jid} (Aguardando aprovação do Admin)`);
+            return;
+        }
+
         if (estadoAtual === 'WAITING_PAYMENT') {
             await sock.sendMessage(jid, { text: "⏳ *Aguardando Pagamento*\nPara continuarmos, efetue o pagamento no link do Mercado Pago gerado acima. Assim que o pagamento for aprovado, o envio será liberado!" });
             return;
@@ -160,9 +220,33 @@ async function connectToWhatsApp() {
             return;
         }
 
+        if (estadoAtual === 'GREETED') {
+            conversationStates.set(jid, 'WAITING_ADMIN_APPROVAL');
+            
+            // Inicia os alertas para o Admin
+            adminAlertCount.set(jid, 0);
+            const timerId = setInterval(async () => {
+                let count = adminAlertCount.get(jid) || 0;
+                if (count >= 7) {
+                    clearInterval(timerId);
+                    adminTimers.delete(jid);
+                    return;
+                }
+                await sock.sendMessage(ADMIN_JID, { text: `🚨 *CLIENTE NA FILA* 🚨\nNúmero: ${jid.split('@')[0]}\nMensagem: "${text}"\n\nResponda com "atender ${jid.split('@')[0]}" para a IA assumir, ou "parar ${jid.split('@')[0]}" para você assumir no humano.` });
+                adminAlertCount.set(jid, count + 1);
+            }, 25000);
+            adminTimers.set(jid, timerId);
+            
+            return; 
+        }
+
         await sock.sendPresenceUpdate('composing', jid);
         
         const botReply = await askVendedor(jid, text);
+        
+        if (estadoAtual === 'NEW') {
+            conversationStates.set(jid, 'GREETED');
+        }
         
         // Verifica se a IA decidiu finalizar a compra (Transição Tesoureiro)
         if (botReply.includes('[FINALIZAR_PEDIDO]')) {
@@ -173,8 +257,8 @@ async function connectToWhatsApp() {
             const valStr = valMatch ? valMatch[1].replace(',', '.') : '0';
             const valorFinal = parseFloat(valStr);
 
-            // 2. Avisa o Admin com os Dados Estruturados
-            await sock.sendMessage(ADMIN_JID, { text: `🚨 *NOVO PEDIDO ESTRUTURADO* 🚨\n\nCliente (WhatsApp): ${jid.split('@')[0]}\n\n📄 Dados:\n${botReply}` });
+            // 2. Avisa o Grupo com os Dados Estruturados
+            await sock.sendMessage(grupoPedidosJid, { text: `🚨 *NOVO PEDIDO ESTRUTURADO* 🚨\n\nCliente (WhatsApp): ${jid.split('@')[0]}\n\n📄 Dados:\n${botReply}` });
 
             // 3. Gera Link Mercado Pago
             const link = await tesoureiro.criarLinkDePagamento(jid, `Pedido Manto Mania`, valorFinal);
