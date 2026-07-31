@@ -228,10 +228,19 @@ async function connectToWhatsApp() {
             adminAlertCount.set(jid, 0);
             const sendAlert = async () => {
                 let count = adminAlertCount.get(jid) || 0;
-                if (count >= 7) {
+                if (count >= 12) { // 12 * 25s = 300s (5 minutos)
                     if (adminTimers.has(jid)) {
                         clearInterval(adminTimers.get(jid));
                         adminTimers.delete(jid);
+                    }
+                    if (conversationStates.get(jid) === 'WAITING_ADMIN_APPROVAL') {
+                        conversationStates.set(jid, 'SHOPPING');
+                        await sock.sendMessage(ADMIN_JID, { text: `⏱️ 5 minutos se passaram sem resposta!\n\n🤖 O Thiago assumiu automaticamente o atendimento do cliente ${jid.split('@')[0]}.` });
+                        
+                        await sock.sendPresenceUpdate('composing', jid);
+                        const botReply = await askVendedor(jid, text);
+                        await sock.sendPresenceUpdate('paused', jid);
+                        await sock.sendMessage(jid, { text: botReply });
                     }
                     return;
                 }
