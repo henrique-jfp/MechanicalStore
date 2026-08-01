@@ -178,18 +178,19 @@ async function askVendedor(jid: string, userMessage: string): Promise<string> {
 
     try {
         const response = await openai.chat.completions.create({
-            model: "google/gemini-2.5-pro:free",
+            model: "nvidia/nemotron-3-ultra-550b-a55b:free",
             messages: history as any,
             temperature: 0.7,
             max_tokens: 800,
-            // Fallback: se o Gemini 2.5 Pro gratuito der rate limit, ele tenta os outros da lista na ordem
             extra_body: {
                 route: "fallback",
                 models: [
-                    "google/gemini-2.5-pro:free",
-                    "google/gemini-2.5-flash:free",
-                    "meta-llama/llama-3-8b-instruct:free",
-                    "mistralai/mistral-7b-instruct:free"
+                    "nvidia/nemotron-3-ultra-550b-a55b:free",
+                    "deepseek/deepseek-v4-flash-0731:free",
+                    "inclusionai/ling-3.0-flash:free",
+                    "nvidia/nemotron-3-super-120b-a12b:free",
+                    "nvidia/nemotron-3-nano-30b-a3b:free",
+                    "openrouter/free"
                 ]
             }
         } as any);
