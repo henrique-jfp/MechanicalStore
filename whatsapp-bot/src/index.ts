@@ -10,15 +10,15 @@ import { Tesoureiro } from './tesoureiro';
 
 dotenv.config();
 
-// Configurações do Groq
-if (!process.env.GROQ_API_KEY) {
-    console.log("❌ ERRO FATAL: Chave da API do Groq não encontrada no arquivo .env!");
+// Configurações do OpenRouter (Com Fallback Gratuito)
+if (!process.env.OPENROUTER_API_KEY) {
+    console.log("❌ ERRO FATAL: Chave da API do OpenRouter não encontrada no arquivo .env!");
     process.exit(1);
 }
 
 const openai = new OpenAI({
-    baseURL: "https://api.groq.com/openai/v1",
-    apiKey: process.env.GROQ_API_KEY,
+    baseURL: "https://openrouter.ai/api/v1",
+    apiKey: process.env.OPENROUTER_API_KEY,
 });
 
 const ADMIN_JID = (process.env.ADMIN_NUMBER || "5521970734956") + "@s.whatsapp.net";
@@ -178,10 +178,21 @@ async function askVendedor(jid: string, userMessage: string): Promise<string> {
 
     try {
         const response = await openai.chat.completions.create({
-            model: "llama-3.3-70b-versatile",
+            model: "meta-llama/llama-3.3-70b-instruct:free",
             messages: history as any,
             temperature: 0.7,
             max_tokens: 800,
+            // Fallback: se o Llama 3.3 70B gratuito der rate limit, ele tenta os outros da lista na ordem
+            extra_body: {
+                route: "fallback",
+                models: [
+                    "meta-llama/llama-3.3-70b-instruct:free",
+                    "google/gemini-2.5-pro:free",
+                    "google/gemini-2.5-flash:free",
+                    "meta-llama/llama-3-8b-instruct:free",
+                    "mistralai/mistral-7b-instruct:free"
+                ]
+            }
         });
 
         let reply = response.choices[0].message.content || '...';
@@ -191,7 +202,7 @@ async function askVendedor(jid: string, userMessage: string): Promise<string> {
         
         return reply;
     } catch (error: any) {
-        console.error('Erro no Groq:', error?.response?.data || error.message);
+        console.error('Erro no OpenRouter:', error?.response?.data || error.message);
         return 'Estou consultando nosso sistema interno no momento, você pode tentar novamente em 1 minuto? 🙏';
     }
 }
