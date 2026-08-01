@@ -118,7 +118,7 @@ async function askVendedor(jid: string, userMessage: string): Promise<string> {
 
     try {
         const response = await openai.chat.completions.create({
-            model: "llama-3.1-70b-versatile",
+            model: "llama-3.3-70b-versatile",
             messages: history as any,
             temperature: 0.7,
             max_tokens: 800,
