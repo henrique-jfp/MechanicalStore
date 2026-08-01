@@ -48,24 +48,52 @@ const tesoureiro = new Tesoureiro(async (jid: string) => {
     }
 });
 
-// Função cirúrgica para ler o estoque atual a partir do catalogo_meta.csv
 function getEstoqueEmTexto(): string {
     const csvPath = path.join(__dirname, '../../catalogo_meta.csv');
     if (!fs.existsSync(csvPath)) return "Nenhum produto cadastrado no momento.";
 
     const content = fs.readFileSync(csvPath, 'utf-8');
     const cleanContent = content.replace(/^\uFEFF/, '');
-    const lines = cleanContent.split('\n').filter(l => l.trim() !== '');
     
     const items: string[] = [];
+    let inQuotes = false;
+    let currentField = '';
+    let currentRecord: string[] = [];
     
-    for (let i = 1; i < lines.length; i++) {
-        const line = lines[i];
-        const fields = line.match(/"([^"]*)"/g);
-        if (fields && fields.length >= 6) {
-            const title = fields[1].replace(/"/g, '');
-            const price = fields[5].replace(/"/g, '');
-            items.push(`- ${title} | Preço: ${price}`);
+    for (let i = 0; i < cleanContent.length; i++) {
+        const char = cleanContent[i];
+        if (char === '"') {
+            inQuotes = !inQuotes;
+            currentField += char;
+        } else if (char === ',' && !inQuotes) {
+            currentRecord.push(currentField);
+            currentField = '';
+        } else if (char === '\n' && !inQuotes) {
+            currentRecord.push(currentField);
+            if (currentRecord.length >= 6) {
+                const firstField = currentRecord[0].replace(/^"|"$/g, '');
+                if (firstField !== 'id') {
+                    const title = currentRecord[1].replace(/^"|"$/g, '');
+                    const price = currentRecord[5].replace(/^"|"$/g, '');
+                    items.push(`- ${title} | Preço: ${price}`);
+                }
+            }
+            currentRecord = [];
+            currentField = '';
+        } else {
+            currentField += char;
+        }
+    }
+    // Lida com a última linha
+    if (currentField !== '' || currentRecord.length > 0) {
+        currentRecord.push(currentField);
+        if (currentRecord.length >= 6) {
+            const firstField = currentRecord[0].replace(/^"|"$/g, '');
+            if (firstField !== 'id') {
+                const title = currentRecord[1].replace(/^"|"$/g, '');
+                const price = currentRecord[5].replace(/^"|"$/g, '');
+                items.push(`- ${title} | Preço: ${price}`);
+            }
         }
     }
 
