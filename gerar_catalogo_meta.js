@@ -5,7 +5,10 @@ const FormData = require('form-data');
 
 const IMGBB_API_KEY = '8b0404e51afb6542d567be344ae4ff11';
 const rootDir = __dirname;
-const categories = ['NBA', 'Retro UCL', 'Seleções', 'Times do Brasil', 'Times da Espanha', 'Times da Inglaterra', 'Times da Itália', 'Times da Alemanha', 'Times da França'];
+const categories = fs.readdirSync(rootDir).filter(c => {
+    const p = path.join(rootDir, c);
+    return fs.statSync(p).isDirectory() && !c.startsWith('.') && c !== 'node_modules' && c !== 'fotos';
+});
 
 async function uploadImage(filePath) {
     if (!fs.existsSync(filePath)) return null;

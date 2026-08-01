@@ -46,7 +46,15 @@ function parseTitle(rawTitle, team) {
         }
     }
     
-    if (!ano) ano = 'Retro'; 
+    if (!ano) {
+        ano = 'Retro'; 
+    } else {
+        const currentYear = new Date().getFullYear();
+        let startYear = parseInt(ano.substring(0, 4));
+        if (!isNaN(startYear) && (currentYear - startYear >= 4)) {
+            if (tipo !== 'Jogador') tipo = 'Retro';
+        }
+    }
     
     let variation = '';
     const variations = ['home', 'away', 'third', '4th', 'special', 'black', 'white', 'red', 'blue', 'green', 'yellow', 'purple', 'preta', 'branca', 'amarela', 'roxa', 'goleiro', 'gk', 'treino', 'training', 'portugal', 'grena'];
@@ -158,7 +166,14 @@ async function run() {
                 const productPath = path.join(currentCategoryPath, smartTitle);
                 if (!fs.existsSync(productPath)) fs.mkdirSync(productPath, { recursive: true });
                 const fotosPath = path.join(productPath, 'fotos');
-                if (!fs.existsSync(fotosPath)) fs.mkdirSync(fotosPath, { recursive: true });
+                if (!fs.existsSync(fotosPath)) {
+                    fs.mkdirSync(fotosPath, { recursive: true });
+                } else {
+                    const oldFiles = fs.readdirSync(fotosPath);
+                    for (const f of oldFiles) {
+                        fs.unlinkSync(path.join(fotosPath, f));
+                    }
+                }
 
                 console.log(`📸 Mapeando e salvando ${imageUrls.length} imagens...`);
                 

@@ -2,7 +2,10 @@ const fs = require('fs');
 const path = require('path');
 
 const rootDir = __dirname;
-const categories = ['NBA', 'Retro UCL', 'Seleções', 'Times do Brasil'];
+const categories = fs.readdirSync(rootDir).filter(c => {
+    const p = path.join(rootDir, c);
+    return fs.statSync(p).isDirectory() && !c.startsWith('.') && c !== 'node_modules' && c !== 'fotos';
+});
 
 // Limpa Markdown e Emojis
 function clearText(text) {
@@ -119,10 +122,6 @@ PERSONALIZE SUA CAMISA!
 Deixe seu manto ainda mais especial!
 Nome + Número personalizados por apenas R$ 25,00.
 
-FRETE E TAXAS
-- FRETE GRÁTIS!
-- Se houver taxa alfandegária, será paga pelo cliente.
-
 ENVIO
 Postagem em até 3 dias úteis após a confirmação do pagamento.
 Código de rastreamento enviado após a postagem.
@@ -181,7 +180,8 @@ async function start() {
                 let header = headers[team] || defaultHeader;
                 const info = getProductInfo(product, cat);
 
-                const anuncioText = `${header}\n\nMODELO: ${product}\n\nVALOR: R$ ${info.price.toFixed(2).replace('.', ',')}\n\n${info.table}\n${customInfo}`;
+                const freteInfo = `FRETE INTERNACIONAL GRÁTIS PARA TODO BRASIL!!\n- Se houver taxa alfandegária, será paga pelo cliente.\n`;
+                const anuncioText = `${header}\n\nMODELO: ${product}\n\nVALOR: R$ ${info.price.toFixed(2).replace('.', ',')}\n\n${freteInfo}\n${info.table}\n${customInfo}`;
                 fs.writeFileSync(path.join(productPath, 'olx_anuncio.txt'), anuncioText, 'utf-8');
 
                 let possibleSizes = ['P', 'M', 'G', 'GG', '2XL', '3XL', '4XL'];
@@ -199,12 +199,14 @@ async function start() {
                 fs.writeFileSync(path.join(productPath, 'wpp_catalogo.json'), JSON.stringify(meta, null, 2), 'utf-8');
 
                 // 5. Cria o texto bonitão pro WhatsApp com Emojis (sem asteriscos que quebram na Meta)
+                const freteInfoWpp = `✈️ FRETE INTERNACIONAL GRÁTIS PARA TODO BRASIL!!\n- Se houver taxa alfandegária, será paga pelo cliente.\n`;
                 const wppText = `🔥 ${header.replace(/\n/, ' 🔥\n')}
 
 ⚽ MODELO: ${product}
 
 💰 VALOR: R$ ${info.price.toFixed(2).replace('.', ',')}
 
+${freteInfoWpp}
 📏 ${info.table}
 ${customInfo}`;
                 fs.writeFileSync(path.join(productPath, 'wpp_anuncio.txt'), wppText, 'utf-8');
