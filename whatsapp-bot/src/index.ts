@@ -34,7 +34,7 @@ const conversationStates = new Map<string, 'NEW' | 'GREETED' | 'WAITING_ADMIN_AP
 const adminTimers = new Map<string, NodeJS.Timeout>();
 const adminAlertCount = new Map<string, number>();
 const pendingMessages = new Map<string, string>(); // Armazena a mensagem pendente do cliente
-const imageMap = new Map<string, string>(); // Mapeia ID do produto -> URL da imagem
+const imageMap = new Map<string, string[]>(); // Mapeia ID do produto -> array de URLs de imagens
 
 // Instancia o Tesoureiro
 const tesoureiro = new Tesoureiro(async (jid: string) => {
@@ -77,10 +77,15 @@ function getEstoqueEmTexto(): string {
                     const id = firstField;
                     const title = currentRecord[1].replace(/^"|"$/g, '');
                     const price = currentRecord[5].replace(/^"|"$/g, '');
-                    const imgUrl = currentRecord.length >= 8 ? currentRecord[7].replace(/^"|"$/g, '') : '';
+                    const imgUrl1 = currentRecord.length >= 8 ? currentRecord[7].replace(/^"|"$/g, '') : '';
+                    const imgUrl2 = currentRecord.length >= 9 ? currentRecord[8].replace(/^"|"$/g, '') : '';
                     
-                    if (imgUrl && imgUrl.trim() !== '') {
-                        imageMap.set(id, imgUrl);
+                    const imgs = [];
+                    if (imgUrl1 && imgUrl1.trim() !== '') imgs.push(imgUrl1);
+                    if (imgUrl2 && imgUrl2.trim() !== '') imgs.push(imgUrl2);
+                    
+                    if (imgs.length > 0) {
+                        imageMap.set(id, imgs);
                     }
                     items.push(`- [ID: ${id}] ${title} | Preço: ${price}`);
                 }
@@ -100,10 +105,15 @@ function getEstoqueEmTexto(): string {
                 const id = firstField;
                 const title = currentRecord[1].replace(/^"|"$/g, '');
                 const price = currentRecord[5].replace(/^"|"$/g, '');
-                const imgUrl = currentRecord.length >= 8 ? currentRecord[7].replace(/^"|"$/g, '') : '';
+                const imgUrl1 = currentRecord.length >= 8 ? currentRecord[7].replace(/^"|"$/g, '') : '';
+                const imgUrl2 = currentRecord.length >= 9 ? currentRecord[8].replace(/^"|"$/g, '') : '';
                 
-                if (imgUrl && imgUrl.trim() !== '') {
-                    imageMap.set(id, imgUrl);
+                const imgs = [];
+                if (imgUrl1 && imgUrl1.trim() !== '') imgs.push(imgUrl1);
+                if (imgUrl2 && imgUrl2.trim() !== '') imgs.push(imgUrl2);
+                
+                if (imgs.length > 0) {
+                    imageMap.set(id, imgs);
                 }
                 items.push(`- [ID: ${id}] ${title} | Preço: ${price}`);
             }
@@ -400,14 +410,16 @@ async function connectToWhatsApp() {
         let match;
         while ((match = fotoRegex.exec(finalReply)) !== null) {
             const photoId = match[1];
-            const imgUrl = imageMap.get(photoId);
-            if (imgUrl) {
-                console.log(`📸 Enviando foto do produto ${photoId} para ${jid}`);
-                try {
-                    await sock.sendPresenceUpdate('composing', jid);
-                    await sock.sendMessage(jid, { image: { url: imgUrl } });
-                } catch (e) {
-                    console.error("Erro ao enviar foto:", e);
+            const imgUrls = imageMap.get(photoId);
+            if (imgUrls && imgUrls.length > 0) {
+                console.log(`📸 Enviando fotos do produto ${photoId} para ${jid}`);
+                for (const imgUrl of imgUrls) {
+                    try {
+                        await sock.sendPresenceUpdate('composing', jid);
+                        await sock.sendMessage(jid, { image: { url: imgUrl } });
+                    } catch (e) {
+                        console.error("Erro ao enviar foto:", e);
+                    }
                 }
             }
         }
