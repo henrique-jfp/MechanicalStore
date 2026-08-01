@@ -260,7 +260,8 @@ async function connectToWhatsApp() {
                     }
                     return;
                 }
-                await sock.sendMessage(ADMIN_JID, { text: `🚨 *CLIENTE NA FILA* 🚨\nNúmero: ${jid.split('@')[0]}\nMensagem: "${text}"\n\nResponda com "atender ${jid.split('@')[0]}" para a IA assumir, ou "parar ${jid.split('@')[0]}" para você assumir no humano.` });
+                await sock.sendMessage(ADMIN_JID, { text: `🚨 *CLIENTE NA FILA* 🚨\n\nMensagem: "${text}"\n\nResponda com "atender <numero>" para a IA assumir, ou "parar <numero>" para você assumir no humano.` });
+                await sock.sendMessage(ADMIN_JID, { text: `${jid.split('@')[0]}` });
                 adminAlertCount.set(jid, count + 1);
             };
             sendAlert(); // Executa a primeira vez IMEDIATAMENTE
