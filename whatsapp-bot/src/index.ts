@@ -32,7 +32,8 @@ const conversationHistory = new Map<string, Array<{role: 'system' | 'user' | 'as
 const conversationStates = new Map<string, 'NEW' | 'GREETED' | 'WAITING_ADMIN_APPROVAL' | 'SHOPPING' | 'PAUSED_BY_ADMIN' | 'WAITING_PAYMENT' | 'PAID'>();
 // Timers de alerta para o Admin
 const adminTimers = new Map<string, NodeJS.Timeout>();
-let adminAlertCount = new Map<string, number>();
+const adminAlertCount = new Map<string, number>();
+const pendingMessages = new Map<string, string>(); // Armazena a mensagem pendente do cliente
 
 // Instancia o Tesoureiro
 const tesoureiro = new Tesoureiro(async (jid: string) => {
@@ -194,6 +195,15 @@ async function connectToWhatsApp() {
                     adminTimers.delete(jid);
                 }
                 await sock.sendMessage(jid, { text: "✅ Thiago reassumiu este chat." });
+                
+                const pendingMsg = pendingMessages.get(jid);
+                if (pendingMsg) {
+                    await sock.sendPresenceUpdate('composing', jid);
+                    const botReply = await askVendedor(jid, pendingMsg);
+                    await sock.sendPresenceUpdate('paused', jid);
+                    await sock.sendMessage(jid, { text: botReply });
+                    pendingMessages.delete(jid);
+                }
                 return;
             } else if (cmd.startsWith('atender ') || cmd.startsWith('atende ')) {
                 const targetNumber = cmd.split(' ')[1];
@@ -211,6 +221,15 @@ async function connectToWhatsApp() {
                     adminTimers.delete(target);
                 }
                 await sock.sendMessage(ADMIN_JID, { text: `✅ A IA assumiu a negociação com ${target.split('@')[0]}.` });
+                
+                const pendingMsg = pendingMessages.get(target);
+                if (pendingMsg) {
+                    await sock.sendPresenceUpdate('composing', target);
+                    const botReply = await askVendedor(target, pendingMsg);
+                    await sock.sendPresenceUpdate('paused', target);
+                    await sock.sendMessage(target, { text: botReply });
+                    pendingMessages.delete(target);
+                }
                 return;
             } else if (cmd.startsWith('parar ') || cmd.startsWith('para ')) {
                 const targetNumber = cmd.split(' ')[1];
@@ -257,6 +276,7 @@ async function connectToWhatsApp() {
 
         if (estadoAtual === 'GREETED') {
             conversationStates.set(jid, 'WAITING_ADMIN_APPROVAL');
+            pendingMessages.set(jid, text); // Salva a mensagem para responder depois
             
             // Inicia os alertas para o Admin
             adminAlertCount.set(jid, 0);
@@ -275,6 +295,7 @@ async function connectToWhatsApp() {
                         const botReply = await askVendedor(jid, text);
                         await sock.sendPresenceUpdate('paused', jid);
                         await sock.sendMessage(jid, { text: botReply });
+                        pendingMessages.delete(jid);
                     }
                     return;
                 }
