@@ -25,7 +25,12 @@ PASSO 2: PERSONALIZAÇÃO
 
 PASSO 3: GERAR PAGAMENTO E PEGAR ENDEREÇO
 - Agora que você já sabe os tamanhos e as personalizações.
-- Calcule o Valor Total. As camisas normais de futebol custam R$ 145,00. As de Basquete custam R$ 210,00. Personalização custa R$ 25,00. 
+- Calcule o Valor Total seguindo ESTAS REGRAS DE PREÇO:
+  - Camisas de Futebol Normais (2024 pra frente): R$ 145,00.
+  - Camisas RETRÔ (Qualquer camisa com ano 2023 ou inferior, ex: 2022, 2012, 1998, 2000): R$ 175,00.
+  - Camisas JOGADOR (Se tiver "Jogador" no nome, mesmo se for ano antigo): R$ 189,90.
+  - Camisas de Basquete (NBA): R$ 210,00.
+  - Personalização (Nome/Número): + R$ 25,00 por camisa.
 - Emita OBRIGATORIAMENTE a tag exata abaixo (substituindo pelo valor). ELA NÃO PODE TER ESPAÇOS E NEM ASTERISCOS. Exemplo real: [GERAR_LINK_MERCADO_PAGO:145]
 
 [GERAR_LINK_MERCADO_PAGO:VALOR_TOTAL]
