@@ -34,6 +34,7 @@ const conversationStates = new Map<string, 'NEW' | 'GREETED' | 'WAITING_ADMIN_AP
 const adminTimers = new Map<string, NodeJS.Timeout>();
 const adminAlertCount = new Map<string, number>();
 const pendingMessages = new Map<string, string>(); // Armazena a mensagem pendente do cliente
+const imageMap = new Map<string, string>(); // Mapeia ID do produto -> URL da imagem
 
 // Instancia o Tesoureiro
 const tesoureiro = new Tesoureiro(async (jid: string) => {
@@ -73,9 +74,15 @@ function getEstoqueEmTexto(): string {
             if (currentRecord.length >= 6) {
                 const firstField = currentRecord[0].replace(/^"|"$/g, '');
                 if (firstField !== 'id') {
+                    const id = firstField;
                     const title = currentRecord[1].replace(/^"|"$/g, '');
                     const price = currentRecord[5].replace(/^"|"$/g, '');
-                    items.push(`- ${title} | Preço: ${price}`);
+                    const imgUrl = currentRecord.length >= 8 ? currentRecord[7].replace(/^"|"$/g, '') : '';
+                    
+                    if (imgUrl && imgUrl.trim() !== '') {
+                        imageMap.set(id, imgUrl);
+                    }
+                    items.push(`- [ID: ${id}] ${title} | Preço: ${price}`);
                 }
             }
             currentRecord = [];
@@ -90,9 +97,15 @@ function getEstoqueEmTexto(): string {
         if (currentRecord.length >= 6) {
             const firstField = currentRecord[0].replace(/^"|"$/g, '');
             if (firstField !== 'id') {
+                const id = firstField;
                 const title = currentRecord[1].replace(/^"|"$/g, '');
                 const price = currentRecord[5].replace(/^"|"$/g, '');
-                items.push(`- ${title} | Preço: ${price}`);
+                const imgUrl = currentRecord.length >= 8 ? currentRecord[7].replace(/^"|"$/g, '') : '';
+                
+                if (imgUrl && imgUrl.trim() !== '') {
+                    imageMap.set(id, imgUrl);
+                }
+                items.push(`- [ID: ${id}] ${title} | Preço: ${price}`);
             }
         }
     }
@@ -192,7 +205,15 @@ async function connectToWhatsApp() {
 
         const jid = m.key.remoteJid;
         
-        const text = m.message?.conversation || m.message?.extendedTextMessage?.text || '';
+        let text = m.message?.conversation || m.message?.extendedTextMessage?.text || '';
+        
+        if (m.message?.productMessage) {
+            const prod = m.message.productMessage.product;
+            text = `[MENSAGEM DE PRODUTO DO CATÁLOGO] Cliente se interessou por: ${prod?.title}`;
+        } else if (m.message?.orderMessage) {
+            text = `[CARRINHO DO WHATSAPP] Cliente enviou um carrinho: ${m.message.orderMessage.orderTitle || 'Itens'} - Mensagem do cliente: ${m.message.orderMessage.message || ''}`;
+        }
+        
         const pushName = m.pushName || 'Cliente';
 
         const isAdmin = jid === ADMIN_JID || jid.includes(ADMIN_JID.split('@')[0]) || jid.includes('47188973469733');
@@ -372,9 +393,33 @@ async function connectToWhatsApp() {
         }
 
         // Se for resposta normal de vendas
-        console.log(`🤖 [THIAGO M.M.]: ${botReply}`);
-        await sock.sendPresenceUpdate('paused', jid);
-        await sock.sendMessage(jid, { text: botReply });
+        let finalReply = botReply;
+        
+        // Verifica se a IA quer enviar uma foto
+        const fotoRegex = /\[ENVIAR_FOTO\]\s*([a-zA-Z0-9_.-]+)/gi;
+        let match;
+        while ((match = fotoRegex.exec(finalReply)) !== null) {
+            const photoId = match[1];
+            const imgUrl = imageMap.get(photoId);
+            if (imgUrl) {
+                console.log(`📸 Enviando foto do produto ${photoId} para ${jid}`);
+                try {
+                    await sock.sendPresenceUpdate('composing', jid);
+                    await sock.sendMessage(jid, { image: { url: imgUrl } });
+                } catch (e) {
+                    console.error("Erro ao enviar foto:", e);
+                }
+            }
+        }
+        
+        // Limpa a tag [ENVIAR_FOTO] do texto final para o cliente não ver
+        finalReply = finalReply.replace(/\[ENVIAR_FOTO\]\s*[a-zA-Z0-9_.-]+/gi, '').trim();
+
+        console.log(`🤖 [THIAGO M.M.]: ${finalReply}`);
+        if (finalReply.length > 0) {
+            await sock.sendPresenceUpdate('paused', jid);
+            await sock.sendMessage(jid, { text: finalReply });
+        }
     });
 }
 
