@@ -166,55 +166,59 @@ function getProductInfo(productName, category) {
 }
 
 async function start() {
-    for (const cat of categories) {
-        const catPath = path.join(rootDir, cat);
-        if (!fs.existsSync(catPath)) continue;
+    const lancamentosFile = path.join(rootDir, 'lancamentos_recentes.json');
+    if (!fs.existsSync(lancamentosFile)) {
+        console.log('Nenhum arquivo lancamentos_recentes.json encontrado. Encerrando.');
+        return;
+    }
 
-        const teams = fs.readdirSync(catPath).filter(t => fs.statSync(path.join(catPath, t)).isDirectory());
-        
-        for (const team of teams) {
-            const teamPath = path.join(catPath, team);
-            const products = fs.readdirSync(teamPath).filter(p => fs.statSync(path.join(teamPath, p)).isDirectory());
+    const lancamentos = JSON.parse(fs.readFileSync(lancamentosFile, 'utf-8'));
 
-            for (const product of products) {
-                const productPath = path.join(teamPath, product);
-                console.log(`Processando: ${product}`);
+    for (const item of lancamentos) {
+        const productPath = item.path;
+        if (!fs.existsSync(productPath)) continue;
 
-                const fotosPath = path.join(productPath, 'fotos');
-                if (!fs.existsSync(fotosPath)) fs.mkdirSync(fotosPath);
+        const product = item.product;
+        const cat = item.category;
+        const team = item.team;
 
-                const files = fs.readdirSync(productPath);
-                for (const file of files) {
-                    const ext = path.extname(file).toLowerCase();
-                    if (['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
-                        fs.renameSync(path.join(productPath, file), path.join(fotosPath, file));
-                    }
-                }
+        console.log(`Processando Lançamento: ${product}`);
 
-                let header = headers[team] || defaultHeader;
-                const info = getProductInfo(product, cat);
+        const fotosPath = path.join(productPath, 'fotos');
+        if (!fs.existsSync(fotosPath)) fs.mkdirSync(fotosPath);
 
-                const freteInfo = `FRETE INTERNACIONAL GRÁTIS PARA TODO BRASIL!!\n- Se houver taxa alfandegária, será paga pelo cliente.\n`;
-                const anuncioText = `${header}\n\nMODELO: ${product}\n\nVALOR: R$ ${info.price.toFixed(2).replace('.', ',')}\n\n${freteInfo}\n${info.table}\n${customInfo}`;
-                fs.writeFileSync(path.join(productPath, 'olx_anuncio.txt'), anuncioText, 'utf-8');
+        const files = fs.readdirSync(productPath);
+        for (const file of files) {
+            const ext = path.extname(file).toLowerCase();
+            if (['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
+                fs.renameSync(path.join(productPath, file), path.join(fotosPath, file));
+            }
+        }
 
-                let possibleSizes = ['P', 'M', 'G', 'GG', '2XL', '3XL', '4XL'];
-                if (info.type === 'Kids') possibleSizes = ['16', '18', '20', '22', '24', '26', '28'];
-                else if (info.type === 'Feminina') possibleSizes = ['P', 'M', 'G', 'GG'];
+        let header = headers[team] || defaultHeader;
+        const info = getProductInfo(product, cat);
 
-                const meta = {
-                    title: product,
-                    price: info.price,
-                    type: info.type,
-                    category: cat,
-                    team: team,
-                    sizes: possibleSizes
-                };
-                fs.writeFileSync(path.join(productPath, 'wpp_catalogo.json'), JSON.stringify(meta, null, 2), 'utf-8');
+        const freteInfo = `FRETE INTERNACIONAL GRÁTIS PARA TODO BRASIL!!\n- Se houver taxa alfandegária, será paga pelo cliente.\n`;
+        const anuncioText = `${header}\n\nMODELO: ${product}\n\nVALOR: R$ ${info.price.toFixed(2).replace('.', ',')}\n\n${freteInfo}\n${info.table}\n${customInfo}`;
+        fs.writeFileSync(path.join(productPath, 'olx_anuncio.txt'), anuncioText, 'utf-8');
 
-                // 5. Cria o texto bonitão pro WhatsApp com Emojis (sem asteriscos que quebram na Meta)
-                const freteInfoWpp = `✈️ FRETE INTERNACIONAL GRÁTIS PARA TODO BRASIL!!\n- Se houver taxa alfandegária, será paga pelo cliente.\n`;
-                const wppText = `🔥 ${header.replace(/\n/, ' 🔥\n')}
+        let possibleSizes = ['P', 'M', 'G', 'GG', '2XL', '3XL', '4XL'];
+        if (info.type === 'Kids') possibleSizes = ['16', '18', '20', '22', '24', '26', '28'];
+        else if (info.type === 'Feminina') possibleSizes = ['P', 'M', 'G', 'GG'];
+
+        const meta = {
+            title: product,
+            price: info.price,
+            type: info.type,
+            category: cat,
+            team: team,
+            sizes: possibleSizes
+        };
+        fs.writeFileSync(path.join(productPath, 'wpp_catalogo.json'), JSON.stringify(meta, null, 2), 'utf-8');
+
+        // 5. Cria o texto bonitão pro WhatsApp com Emojis (sem asteriscos que quebram na Meta)
+        const freteInfoWpp = `✈️ FRETE INTERNACIONAL GRÁTIS PARA TODO BRASIL!!\n- Se houver taxa alfandegária, será paga pelo cliente.\n`;
+        const wppText = `🔥 ${header.replace(/\n/, ' 🔥\n')}
 
 ⚽ MODELO: ${product}
 
@@ -223,11 +227,9 @@ async function start() {
 ${freteInfoWpp}
 📏 ${info.table}
 ${customInfo}`;
-                fs.writeFileSync(path.join(productPath, 'wpp_anuncio.txt'), wppText, 'utf-8');
-            }
-        }
+        fs.writeFileSync(path.join(productPath, 'wpp_anuncio.txt'), wppText, 'utf-8');
     }
-    console.log('✅ Todas as pastas organizadas com sucesso! Preços, tabelas e anúncios WPP aplicados.');
+    console.log('✅ Apenas os lançamentos foram organizados com sucesso!');
 }
 
 start();

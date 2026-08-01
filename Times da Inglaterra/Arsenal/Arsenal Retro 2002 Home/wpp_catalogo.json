@@ -1,0 +1,18 @@
+{
+  "title": "Arsenal Retro 2002 Home",
+  "price": 175,
+  "type": "Retro",
+  "category": "Times da Inglaterra",
+  "team": "Arsenal",
+  "sizes": [
+    "P",
+    "M",
+    "G",
+    "GG",
+    "2XL",
+    "3XL",
+    "4XL"
+  ],
+  "image_link": "https://i.ibb.co/3y5QL1Bm/frente.jpg",
+  "additional_image_link": "https://i.ibb.co/gF33Ps2r/costas.jpg"
+}

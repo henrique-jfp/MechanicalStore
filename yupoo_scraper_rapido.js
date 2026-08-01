@@ -93,6 +93,7 @@ async function run() {
     
     let currentCategoryPath = '';
     let contextTeam = '';
+    let lancamentosRecentes = [];
 
     for (const line of lines) {
         if (line.startsWith('[') && line.endsWith(']')) {
@@ -204,6 +205,13 @@ async function run() {
                     fs.writeFileSync(LINKS_FILE, linesInFile.join('\n'), 'utf-8');
                 }
                 
+                lancamentosRecentes.push({
+                    category: currentCategoryPath.split(path.sep).slice(-2)[0],
+                    team: contextTeam,
+                    product: smartTitle,
+                    path: productPath
+                });
+                
             } catch (e) {
                 console.error(`❌ Erro no álbum:`, e.message);
             }
@@ -211,7 +219,8 @@ async function run() {
         }
     }
     await browser.close();
-    console.log(`\n🎉 Extração Finalizada! Você já pode rodar organizar_loja.js!`);
+    fs.writeFileSync(path.join(__dirname, 'lancamentos_recentes.json'), JSON.stringify(lancamentosRecentes, null, 2), 'utf-8');
+    console.log(`\n🎉 Extração Finalizada! Você já pode rodar organizar_loja.js ou organizar_lancamentos.js!`);
 }
 
 run();

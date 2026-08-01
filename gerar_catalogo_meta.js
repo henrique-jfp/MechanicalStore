@@ -7,7 +7,7 @@ const IMGBB_API_KEY = '8b0404e51afb6542d567be344ae4ff11';
 const rootDir = __dirname;
 const categories = fs.readdirSync(rootDir).filter(c => {
     const p = path.join(rootDir, c);
-    return fs.statSync(p).isDirectory() && !c.startsWith('.') && c !== 'node_modules' && c !== 'fotos';
+    return fs.statSync(p).isDirectory() && !c.startsWith('.') && c !== 'node_modules' && c !== 'fotos' && c !== 'whatsapp-bot' && c !== 'scratch';
 });
 
 async function uploadImage(filePath) {
