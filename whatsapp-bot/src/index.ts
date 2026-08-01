@@ -193,7 +193,7 @@ async function askVendedor(jid: string, userMessage: string): Promise<string> {
                     "mistralai/mistral-7b-instruct:free"
                 ]
             }
-        });
+        } as any);
 
         let reply = response.choices[0].message.content || '...';
         
