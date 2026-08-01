@@ -164,10 +164,12 @@ async function connectToWhatsApp() {
         const jid = m.key.remoteJid;
         
         const text = m.message?.conversation || m.message?.extendedTextMessage?.text || '';
-        if (!text) return;
+        const pushName = m.pushName || 'Cliente';
+
+        const isAdmin = jid === ADMIN_JID || jid.includes(ADMIN_JID.split('@')[0]) || jid.includes('47188973469733');
 
         // Comandos do Admin
-        if (jid === ADMIN_JID || (m.key.fromMe && jid.includes('@s.whatsapp.net'))) {
+        if (isAdmin || (m.key.fromMe && jid.includes('@s.whatsapp.net'))) {
             const cmd = text.toLowerCase().trim();
             if (cmd === '/thiago off') {
                 globalBotEnabled = false;
@@ -194,22 +196,38 @@ async function connectToWhatsApp() {
                 await sock.sendMessage(jid, { text: "✅ Thiago reassumiu este chat." });
                 return;
             } else if (cmd.startsWith('atender ')) {
-                const target = cmd.split(' ')[1] + '@s.whatsapp.net';
+                const targetNumber = cmd.split(' ')[1];
+                let target = targetNumber + '@s.whatsapp.net';
+                for (const key of conversationStates.keys()) {
+                    if (key.startsWith(targetNumber + '@')) {
+                        target = key;
+                        break;
+                    }
+                }
+                
                 conversationStates.set(target, 'SHOPPING');
                 if (adminTimers.has(target)) {
                     clearInterval(adminTimers.get(target));
                     adminTimers.delete(target);
                 }
-                await sock.sendMessage(ADMIN_JID, { text: `✅ Thiago assumiu o atendimento para ${target.split('@')[0]}.` });
+                await sock.sendMessage(ADMIN_JID, { text: `✅ A IA assumiu a negociação com ${target.split('@')[0]}.` });
                 return;
             } else if (cmd.startsWith('parar ')) {
-                const target = cmd.split(' ')[1] + '@s.whatsapp.net';
+                const targetNumber = cmd.split(' ')[1];
+                let target = targetNumber + '@s.whatsapp.net';
+                for (const key of conversationStates.keys()) {
+                    if (key.startsWith(targetNumber + '@')) {
+                        target = key;
+                        break;
+                    }
+                }
+                
                 conversationStates.set(target, 'PAUSED_BY_ADMIN');
                 if (adminTimers.has(target)) {
                     clearInterval(adminTimers.get(target));
                     adminTimers.delete(target);
                 }
-                await sock.sendMessage(ADMIN_JID, { text: `🛑 Thiago bloqueado para o cliente ${target.split('@')[0]}. Somente você responderá agora.` });
+                await sock.sendMessage(ADMIN_JID, { text: `🛑 A IA foi pausada para ${target.split('@')[0]}.` });
                 return;
             }
         }
