@@ -389,7 +389,7 @@ async function connectToWhatsApp() {
 
         await sock.sendPresenceUpdate('composing', jid);
         
-        const botReply = await askVendedor(jid, text);
+        let botReply = await askVendedor(jid, text);
         
         if (estadoAtual === 'NEW') {
             conversationStates.set(jid, 'GREETED');
