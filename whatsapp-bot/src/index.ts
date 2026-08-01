@@ -79,6 +79,7 @@ function getEstoqueEmTexto(): string {
                     const price = currentRecord[5].replace(/^"|"$/g, '');
                     const imgUrl1 = currentRecord.length >= 8 ? currentRecord[7].replace(/^"|"$/g, '') : '';
                     const imgUrl2 = currentRecord.length >= 9 ? currentRecord[8].replace(/^"|"$/g, '') : '';
+                    const link = currentRecord.length >= 7 ? currentRecord[6].replace(/^"|"$/g, '') : '';
                     
                     const imgs = [];
                     if (imgUrl1 && imgUrl1.trim() !== '') imgs.push(imgUrl1);
@@ -87,7 +88,7 @@ function getEstoqueEmTexto(): string {
                     if (imgs.length > 0) {
                         imageMap.set(id, imgs);
                     }
-                    items.push(`- [ID: ${id}] ${title} | Preço: ${price}`);
+                    items.push(`- [ID: ${id}] ${title} | Preço: ${price} | Link: ${link}`);
                 }
             }
             currentRecord = [];
@@ -107,6 +108,7 @@ function getEstoqueEmTexto(): string {
                 const price = currentRecord[5].replace(/^"|"$/g, '');
                 const imgUrl1 = currentRecord.length >= 8 ? currentRecord[7].replace(/^"|"$/g, '') : '';
                 const imgUrl2 = currentRecord.length >= 9 ? currentRecord[8].replace(/^"|"$/g, '') : '';
+                const link = currentRecord.length >= 7 ? currentRecord[6].replace(/^"|"$/g, '') : '';
                 
                 const imgs = [];
                 if (imgUrl1 && imgUrl1.trim() !== '') imgs.push(imgUrl1);
@@ -115,7 +117,7 @@ function getEstoqueEmTexto(): string {
                 if (imgs.length > 0) {
                     imageMap.set(id, imgs);
                 }
-                items.push(`- [ID: ${id}] ${title} | Preço: ${price}`);
+                items.push(`- [ID: ${id}] ${title} | Preço: ${price} | Link: ${link}`);
             }
         }
     }
