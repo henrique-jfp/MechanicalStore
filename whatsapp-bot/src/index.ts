@@ -278,6 +278,47 @@ async function connectToWhatsApp() {
                 globalBotEnabled = true;
                 await sock.sendMessage(ADMIN_JID, { text: "✅ Sistema de IA LIGADO globalmente." });
                 return;
+            } else if (cmd === '/extrair_links' && m.key.fromMe) {
+                await sock.sendMessage(jid, { text: "⏳ Baixando seu catálogo do WhatsApp Business... aguarde!" });
+                try {
+                    let hasMore = true;
+                    let cursor = undefined;
+                    let fullCatalog = "NOME;ID_WHATSAPP;LINK_CATALOGO\n";
+                    let count = 0;
+                    
+                    while(hasMore) {
+                        const res = await sock.getCatalog({ jid: ADMIN_JID, cursor: cursor, limit: 50 });
+                        const products = res.products || [];
+                        
+                        for (const p of products) {
+                            if (p.id) {
+                                fullCatalog += `${p.name};${p.id};https://wa.me/p/${p.id}/${ADMIN_JID.split('@')[0]}\n`;
+                                count++;
+                            }
+                        }
+                        
+                        if (res.nextPageCursor) {
+                            cursor = res.nextPageCursor;
+                        } else {
+                            hasMore = false;
+                        }
+                    }
+                    
+                    const filePath = path.join(__dirname, '../../catalogo_whatsapp.csv');
+                    fs.writeFileSync(filePath, fullCatalog, 'utf-8');
+                    
+                    await sock.sendMessage(jid, { 
+                        document: fs.readFileSync(filePath), 
+                        mimetype: 'text/csv', 
+                        fileName: 'Links_Do_Catalogo.csv',
+                        caption: `✅ Concluído! Encontrei ${count} produtos no seu WhatsApp Business e gerei a planilha com os links de todos eles!`
+                    });
+
+                } catch (e: any) {
+                    console.error(e);
+                    await sock.sendMessage(jid, { text: "❌ Erro ao baixar o catálogo: " + e.message });
+                }
+                return;
             } else if (cmd === '/parar' && m.key.fromMe) {
                 conversationStates.set(jid, 'PAUSED_BY_ADMIN');
                 if (adminTimers.has(jid)) {
