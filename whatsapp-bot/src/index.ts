@@ -263,7 +263,17 @@ async function connectToWhatsApp() {
             const isAdmin = jid === ADMIN_JID || jid.includes(ADMIN_JID.split('@')[0]) || jid.includes('47188973469733');
             if (isAdmin && prod?.productId) {
                 const link = `https://wa.me/p/${prod.productId}/${ADMIN_JID.split('@')[0]}`;
-                await sock.sendMessage(jid, { text: `✅ Produto detectado!\n*Nome:* ${prod.title}\n*Link:* ${link}` });
+                const desc = prod.description || '';
+                
+                const tempFilePath = path.join(__dirname, '../../produtos_capturados.txt');
+                const linha = `- ${prod.title} | Link: ${link}`;
+                fs.appendFileSync(tempFilePath, linha + '\n', 'utf-8');
+
+                try {
+                    await sock.sendMessage(jid, { react: { text: "✅", key: m.key } });
+                } catch(e) {}
+                
+                return; 
             }
         } else if (m.message?.orderMessage) {
             text = `[CARRINHO DO WHATSAPP] Cliente enviou um carrinho: ${m.message.orderMessage.orderTitle || 'Itens'} - Mensagem do cliente: ${m.message.orderMessage.message || ''}`;
@@ -324,6 +334,24 @@ async function connectToWhatsApp() {
                     console.error(e);
                     await sock.sendMessage(jid, { text: "❌ Erro ao baixar o catálogo: " + e.message });
                 }
+                return;
+            } else if (cmd === '/baixar_capturas') {
+                const tempFilePath = path.join(__dirname, '../../produtos_capturados.txt');
+                if (fs.existsSync(tempFilePath)) {
+                    await sock.sendMessage(jid, { 
+                        document: fs.readFileSync(tempFilePath), 
+                        mimetype: 'text/plain', 
+                        fileName: 'produtos_capturados.txt',
+                        caption: `✅ Aqui estão os produtos que você encaminhou!`
+                    });
+                } else {
+                    await sock.sendMessage(jid, { text: "Nenhum produto foi capturado ainda." });
+                }
+                return;
+            } else if (cmd === '/limpar_capturas') {
+                const tempFilePath = path.join(__dirname, '../../produtos_capturados.txt');
+                if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+                await sock.sendMessage(jid, { text: "✅ Lista de capturas apagada!" });
                 return;
             } else if (cmd === '/parar' && m.key.fromMe) {
                 conversationStates.set(jid, 'PAUSED_BY_ADMIN');
