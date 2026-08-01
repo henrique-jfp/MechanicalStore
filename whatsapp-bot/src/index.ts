@@ -178,15 +178,14 @@ async function askVendedor(jid: string, userMessage: string): Promise<string> {
 
     try {
         const response = await openai.chat.completions.create({
-            model: "meta-llama/llama-3.3-70b-instruct:free",
+            model: "google/gemini-2.5-pro:free",
             messages: history as any,
             temperature: 0.7,
             max_tokens: 800,
-            // Fallback: se o Llama 3.3 70B gratuito der rate limit, ele tenta os outros da lista na ordem
+            // Fallback: se o Gemini 2.5 Pro gratuito der rate limit, ele tenta os outros da lista na ordem
             extra_body: {
                 route: "fallback",
                 models: [
-                    "meta-llama/llama-3.3-70b-instruct:free",
                     "google/gemini-2.5-pro:free",
                     "google/gemini-2.5-flash:free",
                     "meta-llama/llama-3-8b-instruct:free",
