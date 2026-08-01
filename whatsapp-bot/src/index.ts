@@ -250,7 +250,7 @@ async function connectToWhatsApp() {
         if (type !== 'notify') return;
         
         const m = messages[0];
-        if (!m || !m.message || m.key.fromMe) return;
+        if (!m || !m.message) return;
 
         const jid = m.key.remoteJid;
         
@@ -395,6 +395,9 @@ async function connectToWhatsApp() {
                 return;
             }
         }
+
+        // Se a mensagem for do próprio bot (e não era um comando ou produto admin), ignora para não falar sozinho
+        if (m.key.fromMe) return;
 
         if (!globalBotEnabled) return;
         if (!jid || jid.includes('@g.us')) return; 
