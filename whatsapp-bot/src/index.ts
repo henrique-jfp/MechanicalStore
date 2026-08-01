@@ -195,7 +195,7 @@ async function connectToWhatsApp() {
                 }
                 await sock.sendMessage(jid, { text: "✅ Thiago reassumiu este chat." });
                 return;
-            } else if (cmd.startsWith('atender ')) {
+            } else if (cmd.startsWith('atender ') || cmd.startsWith('atende ')) {
                 const targetNumber = cmd.split(' ')[1];
                 let target = targetNumber + '@s.whatsapp.net';
                 for (const key of conversationStates.keys()) {
@@ -212,7 +212,7 @@ async function connectToWhatsApp() {
                 }
                 await sock.sendMessage(ADMIN_JID, { text: `✅ A IA assumiu a negociação com ${target.split('@')[0]}.` });
                 return;
-            } else if (cmd.startsWith('parar ')) {
+            } else if (cmd.startsWith('parar ') || cmd.startsWith('para ')) {
                 const targetNumber = cmd.split(' ')[1];
                 let target = targetNumber + '@s.whatsapp.net';
                 for (const key of conversationStates.keys()) {
