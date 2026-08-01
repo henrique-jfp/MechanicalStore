@@ -49,123 +49,14 @@ const tesoureiro = new Tesoureiro(async (jid: string) => {
     }
 });
 
-function getEstoqueEmTexto(): string {
-    const csvPath = path.join(__dirname, '../../catalogo_meta.csv');
-    if (!fs.existsSync(csvPath)) return "Nenhum produto cadastrado no momento.";
-
-    const content = fs.readFileSync(csvPath, 'utf-8');
-    const cleanContent = content.replace(/^\uFEFF/, '');
-    
-    const items: string[] = [];
-    let inQuotes = false;
-    let currentField = '';
-    let currentRecord: string[] = [];
-    
-    for (let i = 0; i < cleanContent.length; i++) {
-        const char = cleanContent[i];
-        if (char === '"') {
-            inQuotes = !inQuotes;
-            currentField += char;
-        } else if (char === ',' && !inQuotes) {
-            currentRecord.push(currentField);
-            currentField = '';
-        } else if (char === '\n' && !inQuotes) {
-            currentRecord.push(currentField);
-            if (currentRecord.length >= 6) {
-                const firstField = currentRecord[0].replace(/^"|"$/g, '');
-                if (firstField !== 'id') {
-                    const id = firstField;
-                    const title = currentRecord[1].replace(/^"|"$/g, '');
-                    const price = currentRecord[5].replace(/^"|"$/g, '');
-                    const imgUrl1 = currentRecord.length >= 8 ? currentRecord[7].replace(/^"|"$/g, '') : '';
-                    const imgUrl2 = currentRecord.length >= 9 ? currentRecord[8].replace(/^"|"$/g, '') : '';
-                    const link = currentRecord.length >= 7 ? currentRecord[6].replace(/^"|"$/g, '') : '';
-                    
-                    const imgs = [];
-                    if (imgUrl1 && imgUrl1.trim() !== '') imgs.push(imgUrl1);
-                    if (imgUrl2 && imgUrl2.trim() !== '') imgs.push(imgUrl2);
-                    
-                    if (imgs.length > 0) {
-                        imageMap.set(id, imgs);
-                    }
-                    items.push(`- [ID: ${id}] ${title} | Preço: ${price} | Link: ${link}`);
-                }
-            }
-            currentRecord = [];
-            currentField = '';
-        } else {
-            currentField += char;
-        }
-    }
-    // Lida com a última linha
-    if (currentField !== '' || currentRecord.length > 0) {
-        currentRecord.push(currentField);
-        if (currentRecord.length >= 6) {
-            const firstField = currentRecord[0].replace(/^"|"$/g, '');
-            if (firstField !== 'id') {
-                const id = firstField;
-                const title = currentRecord[1].replace(/^"|"$/g, '');
-                const price = currentRecord[5].replace(/^"|"$/g, '');
-                const imgUrl1 = currentRecord.length >= 8 ? currentRecord[7].replace(/^"|"$/g, '') : '';
-                const imgUrl2 = currentRecord.length >= 9 ? currentRecord[8].replace(/^"|"$/g, '') : '';
-                const link = currentRecord.length >= 7 ? currentRecord[6].replace(/^"|"$/g, '') : '';
-                
-                const imgs = [];
-                if (imgUrl1 && imgUrl1.trim() !== '') imgs.push(imgUrl1);
-                if (imgUrl2 && imgUrl2.trim() !== '') imgs.push(imgUrl2);
-                
-                if (imgs.length > 0) {
-                    imageMap.set(id, imgs);
-                }
-                items.push(`- [ID: ${id}] ${title} | Preço: ${price} | Link: ${link}`);
-            }
-        }
-    }
-
-    return items.join('\n');
-}
-
-function carregarFotosLocais() {
-    const rootDir = path.join(__dirname, '../../');
-    const categories = ['NBA', 'Retro UCL', 'Seleções', 'Times do Brasil', 'Times da Espanha', 'Times da Inglaterra', 'Times da Itália', 'Times da Alemanha', 'Times da França'];
-    
-    console.log("🔍 Mapeando fotos locais do catálogo...");
-    for (const cat of categories) {
-        const catPath = path.join(rootDir, cat);
-        if (!fs.existsSync(catPath)) continue;
-
-        const teams = fs.readdirSync(catPath).filter(t => fs.statSync(path.join(catPath, t)).isDirectory());
-        
-        for (const team of teams) {
-            const teamPath = path.join(catPath, team);
-            const products = fs.readdirSync(teamPath).filter(p => fs.statSync(path.join(teamPath, p)).isDirectory());
-
-            for (const product of products) {
-                const productPath = path.join(teamPath, product);
-                const fotosPath = path.join(productPath, 'fotos');
-                
-                if (fs.existsSync(fotosPath)) {
-                    const id = product.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_');
-                    const files = fs.readdirSync(fotosPath)
-                                    .filter(f => f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png'))
-                                    .map(f => path.join(fotosPath, f));
-                    
-                    if (files.length > 0) {
-                        imageMap.set(id, files);
-                    }
-                }
-            }
-        }
-    }
-}
+// Função de carregar fotos locais removida.
 
 
 async function askVendedor(jid: string, userMessage: string): Promise<string> {
     if (!conversationHistory.has(jid)) {
         const promptPath = path.join(__dirname, 'prompts', 'vendedor.txt');
         const basePrompt = fs.existsSync(promptPath) ? fs.readFileSync(promptPath, 'utf-8') : 'Você é o vendedor da Manto Mania.';
-        const estoqueText = getEstoqueEmTexto();
-        const fullSystemPrompt = `${basePrompt}\n\n=== ESTOQUE ATUAL ===\n${estoqueText}`;
+        const fullSystemPrompt = `${basePrompt}`;
         conversationHistory.set(jid, [ { role: 'system', content: fullSystemPrompt } ]);
     }
 
@@ -235,8 +126,7 @@ async function connectToWhatsApp() {
             }
         } else if (connection === 'open') {
             console.log('✅ Vendedor Inteligente Manto Mania ONLINE e aguardando clientes!');
-            getEstoqueEmTexto(); // Carrega links do CSV
-            carregarFotosLocais(); // Sobrescreve com fotos locais do sistema (Carrossel Completo!)
+            console.log('✅ WhatsApp Conectado com Sucesso!');
             console.log(`📦 Produtos carregados na memória da IA: ${imageMap.size}`);
             
             // Busca o grupo "Pedidos Estruturados"
@@ -506,58 +396,40 @@ async function connectToWhatsApp() {
         }
         
         // Verifica se a IA decidiu finalizar a compra (Transição Tesoureiro)
-        if (botReply.includes('[FINALIZAR_PEDIDO]')) {
+        if (botReply.includes('[GERAR_LINK_MERCADO_PAGO:')) {
             console.log(`🏦 [SISTEMA] Disparando transição para o Tesoureiro! JID: ${jid}`);
             
-            // 1. Extrai o ValorTotal da mensagem gerada pela IA
-            const valMatch = botReply.match(/ValorTotal:\s*([\d.,]+)/i);
+            // 1. Extrai o ValorTotal da tag
+            const valMatch = botReply.match(/\[GERAR_LINK_MERCADO_PAGO:\s*([\d.,]+)\]/i);
             const valStr = valMatch ? valMatch[1].replace(',', '.') : '0';
             const valorFinal = parseFloat(valStr);
 
             // 2. Avisa o Grupo com os Dados Estruturados
-            await sock.sendMessage(grupoPedidosJid, { text: `🚨 *NOVO PEDIDO ESTRUTURADO* 🚨\n\nCliente (WhatsApp): ${jid.split('@')[0]}\n\n📄 Dados:\n${botReply}` });
+            await sock.sendMessage(grupoPedidosJid, { text: `🚨 *NOVO PEDIDO (AGUARDANDO PAGAMENTO)* 🚨\n\nCliente (WhatsApp): ${jid.split('@')[0]}\nValor: R$ ${valorFinal.toFixed(2)}\n\n(Aguardando cliente preencher o endereço no chat...)` });
 
             // 3. Gera Link Mercado Pago
             const link = await tesoureiro.criarLinkDePagamento(jid, `Pedido Manto Mania`, valorFinal);
 
-            // 4. Responde pro cliente sem a tag feia
-            const msgCliente = `Tudo certinho com o seu endereço e pedido! 📝📦\n\nAqui está o seu link seguro de pagamento via Mercado Pago (Valor: R$ ${valorFinal.toFixed(2).replace('.',',')}):\n\n💳 ${link}\n\nAssim que o pagamento for aprovado, o nosso sistema vai detectar automaticamente e eu retorno aqui para emitir seu rastreio!`;
+            // 4. Troca a tag secreta pela mensagem amigável com o link real
+            const msgCliente = botReply.replace(/\[GERAR_LINK_MERCADO_PAGO:[\d.,]+\]/gi, `\n\n💳 Link de Pagamento (Mercado Pago): ${link}\n`);
             
-            conversationStates.set(jid, 'WAITING_PAYMENT');
+            // Não mudamos o estado para WAITING_PAYMENT ainda porque o cliente precisa mandar o endereço na próxima mensagem.
+            // O estado pode ficar normal, mas a IA vai saber lidar com isso no PASSO 4 do prompt.
             
             await sock.sendPresenceUpdate('paused', jid);
             await sock.sendMessage(jid, { text: msgCliente });
             return;
         }
 
+        // Verifica se a IA quer encerrar o atendimento
+        if (botReply.includes('[ATENDIMENTO_ENCERRADO]')) {
+            console.log(`🛑 [SISTEMA] IA encerrou o atendimento. Aguardando pagamento. JID: ${jid}`);
+            botReply = botReply.replace(/\[ATENDIMENTO_ENCERRADO\]/gi, '').trim();
+            conversationStates.set(jid, 'WAITING_PAYMENT');
+        }
+
         // Se for resposta normal de vendas
         let finalReply = botReply;
-        
-        // Verifica se a IA quer enviar uma foto
-        const fotoRegex = /\[ENVIAR_FOTO\]\s*([a-zA-Z0-9_.-]+)/gi;
-        let match;
-        while ((match = fotoRegex.exec(finalReply)) !== null) {
-            const photoId = match[1];
-            const imgUrls = imageMap.get(photoId);
-            if (imgUrls && imgUrls.length > 0) {
-                console.log(`📸 Enviando fotos do produto ${photoId} para ${jid}`);
-                for (const imgUrl of imgUrls) {
-                    try {
-                        await sock.sendPresenceUpdate('composing', jid);
-                        if (fs.existsSync(imgUrl)) {
-                            await sock.sendMessage(jid, { image: fs.readFileSync(imgUrl) });
-                        } else {
-                            await sock.sendMessage(jid, { image: { url: imgUrl } });
-                        }
-                    } catch (e) {
-                        console.error("Erro ao enviar foto:", e);
-                    }
-                }
-            }
-        }
-        
-        // Limpa a tag [ENVIAR_FOTO] do texto final para o cliente não ver
-        finalReply = finalReply.replace(/\[ENVIAR_FOTO\]\s*[a-zA-Z0-9_.-]+/gi, '').trim();
 
         console.log(`🤖 [THIAGO M.M.]: ${finalReply}`);
         if (finalReply.length > 0) {
