@@ -125,6 +125,41 @@ function getEstoqueEmTexto(): string {
     return items.join('\n');
 }
 
+function carregarFotosLocais() {
+    const rootDir = path.join(__dirname, '../../');
+    const categories = ['NBA', 'Retro UCL', 'Seleções', 'Times do Brasil', 'Times da Espanha', 'Times da Inglaterra', 'Times da Itália', 'Times da Alemanha', 'Times da França'];
+    
+    console.log("🔍 Mapeando fotos locais do catálogo...");
+    for (const cat of categories) {
+        const catPath = path.join(rootDir, cat);
+        if (!fs.existsSync(catPath)) continue;
+
+        const teams = fs.readdirSync(catPath).filter(t => fs.statSync(path.join(catPath, t)).isDirectory());
+        
+        for (const team of teams) {
+            const teamPath = path.join(catPath, team);
+            const products = fs.readdirSync(teamPath).filter(p => fs.statSync(path.join(teamPath, p)).isDirectory());
+
+            for (const product of products) {
+                const productPath = path.join(teamPath, product);
+                const fotosPath = path.join(productPath, 'fotos');
+                
+                if (fs.existsSync(fotosPath)) {
+                    const id = product.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_');
+                    const files = fs.readdirSync(fotosPath)
+                                    .filter(f => f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.jpeg') || f.toLowerCase().endsWith('.png'))
+                                    .map(f => path.join(fotosPath, f));
+                    
+                    if (files.length > 0) {
+                        imageMap.set(id, files);
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 async function askVendedor(jid: string, userMessage: string): Promise<string> {
     if (!conversationHistory.has(jid)) {
         const promptPath = path.join(__dirname, 'prompts', 'vendedor.txt');
@@ -189,7 +224,9 @@ async function connectToWhatsApp() {
             }
         } else if (connection === 'open') {
             console.log('✅ Vendedor Inteligente Manto Mania ONLINE e aguardando clientes!');
-            console.log(`📦 Produtos em estoque carregados na memória da IA: \n${getEstoqueEmTexto().split('\n').length}`);
+            getEstoqueEmTexto(); // Carrega links do CSV
+            carregarFotosLocais(); // Sobrescreve com fotos locais do sistema (Carrossel Completo!)
+            console.log(`📦 Produtos carregados na memória da IA: ${imageMap.size}`);
             
             // Busca o grupo "Pedidos Estruturados"
             try {
@@ -418,7 +455,11 @@ async function connectToWhatsApp() {
                 for (const imgUrl of imgUrls) {
                     try {
                         await sock.sendPresenceUpdate('composing', jid);
-                        await sock.sendMessage(jid, { image: { url: imgUrl } });
+                        if (fs.existsSync(imgUrl)) {
+                            await sock.sendMessage(jid, { image: fs.readFileSync(imgUrl) });
+                        } else {
+                            await sock.sendMessage(jid, { image: { url: imgUrl } });
+                        }
                     } catch (e) {
                         console.error("Erro ao enviar foto:", e);
                     }
