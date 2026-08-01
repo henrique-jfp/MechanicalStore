@@ -278,7 +278,7 @@ async function connectToWhatsApp() {
                 globalBotEnabled = true;
                 await sock.sendMessage(ADMIN_JID, { text: "✅ Sistema de IA LIGADO globalmente." });
                 return;
-            } else if (cmd === '/extrair_links' && m.key.fromMe) {
+            } else if (cmd === '/extrair_links') {
                 await sock.sendMessage(jid, { text: "⏳ Baixando seu catálogo do WhatsApp Business... aguarde!" });
                 try {
                     let hasMore = true;
