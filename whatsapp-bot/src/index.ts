@@ -259,6 +259,12 @@ async function connectToWhatsApp() {
         if (m.message?.productMessage) {
             const prod = m.message.productMessage.product;
             text = `[MENSAGEM DE PRODUTO DO CATÁLOGO] Cliente se interessou por: ${prod?.title}`;
+            
+            const isAdmin = jid === ADMIN_JID || jid.includes(ADMIN_JID.split('@')[0]) || jid.includes('47188973469733');
+            if (isAdmin && prod?.productId) {
+                const link = `https://wa.me/p/${prod.productId}/${ADMIN_JID.split('@')[0]}`;
+                await sock.sendMessage(jid, { text: `✅ Produto detectado!\n*Nome:* ${prod.title}\n*Link:* ${link}` });
+            }
         } else if (m.message?.orderMessage) {
             text = `[CARRINHO DO WHATSAPP] Cliente enviou um carrinho: ${m.message.orderMessage.orderTitle || 'Itens'} - Mensagem do cliente: ${m.message.orderMessage.message || ''}`;
         }
