@@ -177,7 +177,11 @@ async function connectToWhatsApp() {
                 return; 
             }
         } else if (m.message?.orderMessage) {
-            text = `[CARRINHO DO WHATSAPP] Cliente enviou um carrinho: ${m.message.orderMessage.orderTitle || 'Itens'} - Mensagem do cliente: ${m.message.orderMessage.message || ''}`;
+            const orderTitle = m.message.orderMessage.orderTitle || 'Itens';
+            const msg = m.message.orderMessage.message || '';
+            const totalAmount = m.message.orderMessage.totalAmount1000 ? (Number(m.message.orderMessage.totalAmount1000) / 1000).toFixed(2) : '0.00';
+            const itemCount = m.message.orderMessage.itemCount || 1;
+            text = `[CARRINHO DO WHATSAPP] Cliente enviou um carrinho com ${itemCount} item(ns): ${orderTitle}. Valor Total: R$ ${totalAmount}. Mensagem do cliente: ${msg}`;
         }
         
         const pushName = m.pushName || 'Cliente';
