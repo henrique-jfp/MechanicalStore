@@ -35,6 +35,8 @@ const adminTimers = new Map<string, NodeJS.Timeout>();
 const adminAlertCount = new Map<string, number>();
 const pendingMessages = new Map<string, string>(); // Armazena a mensagem pendente do cliente
 const imageMap = new Map<string, string[]>(); // Mapeia ID do produto -> array de URLs de imagens
+const messageBuffer = new Map<string, { texts: string[], lastM: any }>(); // Buffer para debouncing
+const debounceTimers = new Map<string, NodeJS.Timeout>(); // Timers para debouncing
 
 // Instancia o Tesoureiro
 const tesoureiro = new Tesoureiro(async (jid: string) => {
@@ -337,109 +339,129 @@ async function connectToWhatsApp() {
 
         console.log(`\n📩 [CLIENTE] ${jid.split('@')[0]}: ${text}`);
 
-        // Controle de Estados
-        const estadoAtual = conversationStates.get(jid) || 'NEW';
-        
-        if (estadoAtual === 'PAUSED_BY_ADMIN') return;
+        // Debounce Logic
+        if (!messageBuffer.has(jid)) {
+            messageBuffer.set(jid, { texts: [], lastM: m });
+        }
+        if (text.trim() !== '') {
+            messageBuffer.get(jid)!.texts.push(text);
+        }
+        messageBuffer.get(jid)!.lastM = m;
 
-        if (estadoAtual === 'WAITING_ADMIN_APPROVAL') {
-            console.log(`⏳ Ignorando mensagem de ${jid} (Aguardando aprovação do Admin)`);
-            return;
+        if (debounceTimers.has(jid)) {
+            clearTimeout(debounceTimers.get(jid)!);
         }
 
-        if (estadoAtual === 'WAITING_PAYMENT') {
-            await sock.sendMessage(jid, { text: "⏳ *Aguardando Pagamento*\nPara continuarmos, efetue o pagamento no link do Mercado Pago gerado acima. Assim que o pagamento for aprovado, o envio será liberado!" });
-            return;
-        } else if (estadoAtual === 'PAID') {
-            await sock.sendMessage(jid, { text: "Seu pedido já foi pago e está em processamento! Qualquer dúvida extra ou alteração, aguarde um de nossos atendentes humanos. ⚽" });
-            return;
-        }
-
-        if (estadoAtual === 'GREETED') {
-            conversationStates.set(jid, 'WAITING_ADMIN_APPROVAL');
-            pendingMessages.set(jid, text); // Salva a mensagem para responder depois
+        debounceTimers.set(jid, setTimeout(async () => {
+            debounceTimers.delete(jid);
+            const buffer = messageBuffer.get(jid);
+            if (!buffer || buffer.texts.length === 0) return;
             
-            // Inicia os alertas para o Admin
-            adminAlertCount.set(jid, 0);
-            const sendAlert = async () => {
-                let count = adminAlertCount.get(jid) || 0;
-                if (count >= 12) { // 12 * 25s = 300s (5 minutos)
-                    if (adminTimers.has(jid)) {
-                        clearInterval(adminTimers.get(jid));
-                        adminTimers.delete(jid);
+            const combinedText = buffer.texts.join('\n');
+            const lastM = buffer.lastM;
+            messageBuffer.set(jid, { texts: [], lastM: null });
+
+            // Controle de Estados
+            const estadoAtual = conversationStates.get(jid) || 'NEW';
+            
+            if (estadoAtual === 'PAUSED_BY_ADMIN') return;
+
+            if (estadoAtual === 'WAITING_ADMIN_APPROVAL') {
+                console.log(`⏳ Ignorando mensagem de ${jid} (Aguardando aprovação do Admin)`);
+                return;
+            }
+
+            if (estadoAtual === 'WAITING_PAYMENT') {
+                await sock.sendMessage(jid, { text: "⏳ *Aguardando Pagamento*\nPara continuarmos, efetue o pagamento no link do Mercado Pago gerado acima. Assim que o pagamento for aprovado, o envio será liberado!" });
+                return;
+            } else if (estadoAtual === 'PAID') {
+                await sock.sendMessage(jid, { text: "Seu pedido já foi pago e está em processamento! Qualquer dúvida extra ou alteração, aguarde um de nossos atendentes humanos. ⚽" });
+                return;
+            }
+
+            if (estadoAtual === 'GREETED') {
+                conversationStates.set(jid, 'WAITING_ADMIN_APPROVAL');
+                pendingMessages.set(jid, combinedText); // Salva a mensagem para responder depois
+                
+                // Inicia os alertas para o Admin
+                adminAlertCount.set(jid, 0);
+                const sendAlert = async () => {
+                    let count = adminAlertCount.get(jid) || 0;
+                    if (count >= 12) { // 12 * 25s = 300s (5 minutos)
+                        if (adminTimers.has(jid)) {
+                            clearInterval(adminTimers.get(jid));
+                            adminTimers.delete(jid);
+                        }
+                        if (conversationStates.get(jid) === 'WAITING_ADMIN_APPROVAL') {
+                            conversationStates.set(jid, 'SHOPPING');
+                            await sock.sendMessage(ADMIN_JID, { text: `⏱️ 5 minutos se passaram sem resposta!\n\n🤖 O Thiago assumiu automaticamente o atendimento do cliente ${jid.split('@')[0]}.` });
+                            
+                            await sock.sendPresenceUpdate('composing', jid);
+                            const botReply = await askVendedor(jid, combinedText);
+                            await sock.sendPresenceUpdate('paused', jid);
+                            await sock.sendMessage(jid, { text: botReply });
+                            pendingMessages.delete(jid);
+                        }
+                        return;
                     }
-                    if (conversationStates.get(jid) === 'WAITING_ADMIN_APPROVAL') {
-                        conversationStates.set(jid, 'SHOPPING');
-                        await sock.sendMessage(ADMIN_JID, { text: `⏱️ 5 minutos se passaram sem resposta!\n\n🤖 O Thiago assumiu automaticamente o atendimento do cliente ${jid.split('@')[0]}.` });
-                        
-                        await sock.sendPresenceUpdate('composing', jid);
-                        const botReply = await askVendedor(jid, text);
-                        await sock.sendPresenceUpdate('paused', jid);
-                        await sock.sendMessage(jid, { text: botReply });
-                        pendingMessages.delete(jid);
-                    }
-                    return;
-                }
-                await sock.sendMessage(ADMIN_JID, { text: `🚨 *CLIENTE NA FILA* 🚨\n\nMensagem: "${text}"\n\nResponda com "atender <numero>" para a IA assumir, ou "parar <numero>" para você assumir no humano.` });
-                await sock.sendMessage(ADMIN_JID, { text: `${jid.split('@')[0]}` });
-                adminAlertCount.set(jid, count + 1);
-            };
-            sendAlert(); // Executa a primeira vez IMEDIATAMENTE
-            const timerId = setInterval(sendAlert, 25000);
-            adminTimers.set(jid, timerId);
+                    await sock.sendMessage(ADMIN_JID, { text: `🚨 *CLIENTE NA FILA* 🚨\n\nMensagem: "${combinedText}"\n\nResponda com "atender <numero>" para a IA assumir, ou "parar <numero>" para você assumir no humano.` });
+                    await sock.sendMessage(ADMIN_JID, { text: `${jid.split('@')[0]}` });
+                    adminAlertCount.set(jid, count + 1);
+                };
+                sendAlert(); // Executa a primeira vez IMEDIATAMENTE
+                const timerId = setInterval(sendAlert, 25000);
+                adminTimers.set(jid, timerId);
+                
+                return; 
+            }
+
+            await sock.sendPresenceUpdate('composing', jid);
             
-            return; 
-        }
-
-        await sock.sendPresenceUpdate('composing', jid);
-        
-        let botReply = await askVendedor(jid, text);
-        
-        if (estadoAtual === 'NEW') {
-            conversationStates.set(jid, 'GREETED');
-        }
-        
-        // Verifica se a IA decidiu finalizar a compra (Transição Tesoureiro)
-        if (botReply.includes('[GERAR_LINK_MERCADO_PAGO:')) {
-            console.log(`🏦 [SISTEMA] Disparando transição para o Tesoureiro! JID: ${jid}`);
+            let botReply = await askVendedor(jid, combinedText);
             
-            // 1. Extrai o ValorTotal da tag
-            const valMatch = botReply.match(/\[GERAR_LINK_MERCADO_PAGO:\s*([\d.,]+)\]/i);
-            const valStr = valMatch ? valMatch[1].replace(',', '.') : '0';
-            const valorFinal = parseFloat(valStr);
-
-            // 2. Avisa o Grupo com os Dados Estruturados
-            await sock.sendMessage(grupoPedidosJid, { text: `🚨 *NOVO PEDIDO (AGUARDANDO PAGAMENTO)* 🚨\n\nCliente (WhatsApp): ${jid.split('@')[0]}\nValor: R$ ${valorFinal.toFixed(2)}\n\n(Aguardando cliente preencher o endereço no chat...)` });
-
-            // 3. Gera Link Mercado Pago
-            const link = await tesoureiro.criarLinkDePagamento(jid, `Pedido Manto Mania`, valorFinal);
-
-            // 4. Troca a tag secreta pela mensagem amigável com o link real
-            const msgCliente = botReply.replace(/\[GERAR_LINK_MERCADO_PAGO:[\d.,]+\]/gi, `\n\n💳 Link de Pagamento (Mercado Pago): ${link}\n`);
+            if (estadoAtual === 'NEW') {
+                conversationStates.set(jid, 'GREETED');
+            }
             
-            // Não mudamos o estado para WAITING_PAYMENT ainda porque o cliente precisa mandar o endereço na próxima mensagem.
-            // O estado pode ficar normal, mas a IA vai saber lidar com isso no PASSO 4 do prompt.
-            
-            await sock.sendPresenceUpdate('paused', jid);
-            await sock.sendMessage(jid, { text: msgCliente });
-            return;
-        }
+            // Verifica se a IA decidiu finalizar a compra (Transição Tesoureiro)
+            if (botReply.includes('[GERAR_LINK_MERCADO_PAGO:')) {
+                console.log(`🏦 [SISTEMA] Disparando transição para o Tesoureiro! JID: ${jid}`);
+                
+                // 1. Extrai o ValorTotal da tag
+                const valMatch = botReply.match(/\[GERAR_LINK_MERCADO_PAGO:\s*([\d.,]+)\]/i);
+                const valStr = valMatch ? valMatch[1].replace(',', '.') : '0';
+                const valorFinal = parseFloat(valStr);
 
-        // Verifica se a IA quer encerrar o atendimento
-        if (botReply.includes('[ATENDIMENTO_ENCERRADO]')) {
-            console.log(`🛑 [SISTEMA] IA encerrou o atendimento. Aguardando pagamento. JID: ${jid}`);
-            botReply = botReply.replace(/\[ATENDIMENTO_ENCERRADO\]/gi, '').trim();
-            conversationStates.set(jid, 'WAITING_PAYMENT');
-        }
+                // 2. Avisa o Grupo com os Dados Estruturados
+                await sock.sendMessage(grupoPedidosJid, { text: `🚨 *NOVO PEDIDO (AGUARDANDO PAGAMENTO)* 🚨\n\nCliente (WhatsApp): ${jid.split('@')[0]}\nValor: R$ ${valorFinal.toFixed(2)}\n\n(Aguardando cliente preencher o endereço no chat...)` });
 
-        // Se for resposta normal de vendas
-        let finalReply = botReply;
+                // 3. Gera Link Mercado Pago
+                const link = await tesoureiro.criarLinkDePagamento(jid, `Pedido Manto Mania`, valorFinal);
 
-        console.log(`🤖 [THIAGO M.M.]: ${finalReply}`);
-        if (finalReply.length > 0) {
-            await sock.sendPresenceUpdate('paused', jid);
-            await sock.sendMessage(jid, { text: finalReply });
-        }
+                // 4. Troca a tag secreta pela mensagem amigável com o link real
+                const msgCliente = botReply.replace(/\[GERAR_LINK_MERCADO_PAGO:[\d.,]+\]/gi, `\n\n💳 Link de Pagamento (Mercado Pago): ${link}\n`);
+                
+                await sock.sendPresenceUpdate('paused', jid);
+                await sock.sendMessage(jid, { text: msgCliente });
+                return;
+            }
+
+            // Verifica se a IA quer encerrar o atendimento
+            if (botReply.includes('[ATENDIMENTO_ENCERRADO]')) {
+                console.log(`🛑 [SISTEMA] IA encerrou o atendimento. Aguardando pagamento. JID: ${jid}`);
+                botReply = botReply.replace(/\[ATENDIMENTO_ENCERRADO\]/gi, '').trim();
+                conversationStates.set(jid, 'WAITING_PAYMENT');
+            }
+
+            // Se for resposta normal de vendas
+            let finalReply = botReply;
+
+            console.log(`🤖 [THIAGO M.M.]: ${finalReply}`);
+            if (finalReply.length > 0) {
+                await sock.sendPresenceUpdate('paused', jid);
+                await sock.sendMessage(jid, { text: finalReply });
+            }
+        }, 2500));
     });
 }
 
